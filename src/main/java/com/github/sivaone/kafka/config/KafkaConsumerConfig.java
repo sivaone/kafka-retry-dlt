@@ -1,6 +1,8 @@
 package com.github.sivaone.kafka.config;
 
+import com.github.sivaone.kafka.exception.NonRetryableException;
 import com.github.sivaone.kafka.exception.RetryableException;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -41,7 +43,14 @@ public class KafkaConsumerConfig
 {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaConsumerConfig.class);
-    public static final String BOOTSTRAP_SERVERS = "localhost:9092";
+    public static final String BOOTSTRAP_SERVERS = "localhost:19092";
+
+    @Bean
+    public KafkaAdmin admin() {
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        return new KafkaAdmin(configs);
+    }
 
 //    @RetryableTopic
 //    public void consumerConfig() {
@@ -57,10 +66,11 @@ public class KafkaConsumerConfig
 //    ) {
 //
 //
-//        return super.retryTopicConfigurer(kafkaConsumerBackoffManager, destinationTopicResolver, componentFactoryProvider, beanFactory);
+//        return super.retryTopicConfigurer(kafkaConsumerBackoffManager, destinationTopicResolver,
+//        componentFactoryProvider, beanFactory);
 //    }
 
-    @Bean
+   /* @Bean
     public RetryTopicConfiguration myRetryTopic(
             @Qualifier("orderKafkaTemplate") KafkaTemplate<String, String> template) {
 //        TopicSuffixingStrategy topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_DELAY_VALUE;
@@ -76,15 +86,16 @@ public class KafkaConsumerConfig
                 //.sameIntervalTopicReuseStrategy(sameIntervalTopicReuseStrategy)
 //                .dltHandlerMethod("orderConsumer", "dltHandler") // to process dlt messages
                 .autoStartDltHandler(false) // Set false to not to process the dlt messages
-                .fixedBackOff(4000)
+                .fixedBackOff(120000) // 2 mins interval
                 .maxAttempts(5)
                 .concurrency(1)
-                .timeoutAfter(60000)
+                .timeoutAfter(900000) // 15 mins
+                // Only one of retryOn or notRetryOn is allowed
                 .retryOn(RetryableException.class)
-//                .notRetryOn(Collections.emptyList())
+//                .notRetryOn(NonRetryableException.class)
 //                .listenerFactory("kafkaListenerContainerFactory") // can have different listener for retry topic
                 .create(template);
-    }
+    } */
 
     @Bean("orderKafkaTemplate")
     public KafkaTemplate<String, String> kafkaTemplate() {
@@ -137,19 +148,20 @@ public class KafkaConsumerConfig
         config.put(ConsumerConfig.GROUP_ID_CONFIG, "my-orders"); // (high imp)
 //        config.put(ConsumerConfig.CLIENT_ID_CONFIG, "my-orders-client"); // Just to track who consumed the message
 //        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // [latest, earliest, none] (medium imp)
+        config.put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false);
         return config;
     }
 
     // TODO: seems to be not working, need to fix
-    @Bean
-    DeadLetterPublishingRecovererFactory deadLetterPublishingRecovererFactory(DestinationTopicResolver resolver) {
-        DeadLetterPublishingRecovererFactory factory = new DeadLetterPublishingRecovererFactory(resolver);
-        factory.setDeadLetterPublishingRecovererCustomizer(dlpr -> {
-            dlpr.setAppendOriginalHeaders(false);
-            dlpr.setStripPreviousExceptionHeaders(true);
-        });
-        return factory;
-    }
+//    @Bean
+//    DeadLetterPublishingRecovererFactory deadLetterPublishingRecovererFactory(DestinationTopicResolver resolver) {
+//        DeadLetterPublishingRecovererFactory factory = new DeadLetterPublishingRecovererFactory(resolver);
+//        factory.setDeadLetterPublishingRecovererCustomizer(dlpr -> {
+//            dlpr.setAppendOriginalHeaders(false);
+//            dlpr.setStripPreviousExceptionHeaders(true);
+//        });
+//        return factory;
+//    }
 
     // TODO: strip off stack trace from retry topic headers
 
